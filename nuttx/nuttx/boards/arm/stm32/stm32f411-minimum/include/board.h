@@ -59,11 +59,11 @@
 
 /* HSI - 16 MHz RC factory-trimmed
  * LSI - 32 KHz RC
- * HSE - 25 MHz Crystal
+ * HSE - 16 MHz Crystal
  * LSE - 32 KHz Crystal
  */
 
-#define STM32_BOARD_XTAL        25000000ul
+#define STM32_BOARD_XTAL        8000000ul       //Herc  change
 
 #define STM32_HSI_FREQUENCY     16000000ul
 #define STM32_LSI_FREQUENCY     32000
@@ -98,7 +98,7 @@
  *           = 96,000,000 / 2 = 48,000,000
  */
 
-#define STM32_PLLCFG_PLLM       RCC_PLLCFG_PLLM(25)
+#define STM32_PLLCFG_PLLM       RCC_PLLCFG_PLLM(8)
 #define STM32_PLLCFG_PLLN       RCC_PLLCFG_PLLN(192)
 #define STM32_PLLCFG_PLLP       RCC_PLLCFG_PLLP_2
 #define STM32_PLLCFG_PLLQ       RCC_PLLCFG_PLLQ(2)
@@ -326,5 +326,15 @@
 #define NUM_BUTTONS        1
 
 #define BUTTON_USER_BIT    (1 << BUTTON_USER)
+
+
+/*  PWM remap pin  ----herc
+*	set the pin whichone we want to use for motor
+*
+*/
+#define GPIO_TIM3_CH1OUT GPIO_TIM3_CH1OUT_1
+#define GPIO_TIM3_CH2OUT GPIO_TIM3_CH2OUT_1
+#define GPIO_TIM3_CH3OUT GPIO_TIM3_CH3OUT_1
+#define GPIO_TIM3_CH4OUT GPIO_TIM3_CH4OUT_1
 
 #endif /* __BOARDS_ARM_STM32_STM32F411_MINIMUM_INCLUDE_BOARD_H */

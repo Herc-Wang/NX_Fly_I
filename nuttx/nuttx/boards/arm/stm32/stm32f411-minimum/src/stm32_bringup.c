@@ -58,16 +58,22 @@ int stm32_bringup(void)
 {
   int ret = OK;
 
-#if defined(CONFIG_STM32_OTGFS) && defined(CONFIG_USBHOST)
-  /* Initialize USB host operation.  stm32_usbhost_initialize() starts a
-   * thread will monitor for USB connection and disconnection events.
-   */
-
-  ret = stm32_usbhost_initialize();
-  if (ret != OK)
+#ifdef CONFIG_DEV_GPIO
+  ret = stm32_gpio_initialize();
+  if (ret < 0)
     {
-      uerr("ERROR: Failed to initialize USB host: %d\n", ret);
+      syslog(LOG_ERR, "Failed to initialize GPIO Driver: %d\n", ret);
       return ret;
+    }
+#endif
+
+#ifdef CONFIG_PWM
+  /* Initialize PWM and register the PWM device. */
+
+  ret = stm32_pwm_setup();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: stm32_pwm_setup() failed: %d\n", ret);
     }
 #endif
 

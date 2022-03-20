@@ -147,8 +147,18 @@ static inline void stm32_mcoconfig(uint32_t source)
   /* Set MCO source */
 
   regval = getreg32(STM32_RCC_CFGR);
+#if defined(CONFIG_STM32_STM32F4XXX)      //fix the incompatible for stm32f4xx
+  regval &= ~(RCC_CFGR_MCO1_MASK);
+#else
   regval &= ~(RCC_CFGR_MCO_MASK);
+#endif
+
+#if defined(CONFIG_STM32_STM32F4XXX)
+  regval |= (source & RCC_CFGR_MCO1_MASK);
+#else
   regval |= (source & RCC_CFGR_MCO_MASK);
+#endif
+
   putreg32(regval, STM32_RCC_CFGR);
 }
 #endif

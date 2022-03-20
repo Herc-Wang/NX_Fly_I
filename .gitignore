@@ -1,3 +1,8 @@
 .history/
 nuttx/apps.tar.gz
 nuttx/nuttx.tar.gz
+.vscode/.cortex-debug.peripherals.state.json
+nuttx/apps/builtin/registry/gpio.bdat
+nuttx/apps/builtin/registry/gpio.pdat
+nuttx/apps/builtin/registry/pwm.bdat
+nuttx/apps/builtin/registry/pwm.pdat

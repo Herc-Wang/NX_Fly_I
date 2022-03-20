@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "stm32f411-minimum.h": "c",
+        "irq.h": "c",
+        "cstdlib": "c"
+    }
+}

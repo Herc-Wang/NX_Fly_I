@@ -29,6 +29,8 @@
 #include <nuttx/compiler.h>
 
 #include <stdint.h>
+#include <arch/chip/chip.h>
+#include "stm32_gpio.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -44,21 +46,9 @@
  */
 
 #define GPIO_LED1 \
-  (GPIO_PORTC | GPIO_PIN13 | GPIO_OUTPUT_SET | GPIO_OUTPUT | GPIO_PULLUP | \
+  (GPIO_PORTB | GPIO_PIN8 | GPIO_OUTPUT_SET | GPIO_OUTPUT | GPIO_PULLUP | \
    GPIO_SPEED_50MHz)
 
-/* Buttons
- *
- * B1 USER: the user button is connected to the I/O PA0 of the STM32
- * microcontroller.
- */
-
-#define MIN_IRQBUTTON   BUTTON_USER
-#define MAX_IRQBUTTON   BUTTON_USER
-#define NUM_IRQBUTTONS  1
-
-#define GPIO_BTN_USER \
-  (GPIO_INPUT |GPIO_FLOAT |GPIO_EXTI | GPIO_PORTA | GPIO_PIN0)
 
 /* SPI1 off */
 
@@ -69,27 +59,31 @@
 #define GPIO_SPI1_SCK_OFF  (GPIO_INPUT | GPIO_PULLDOWN | \
                             GPIO_PORTA | GPIO_PIN5)
 
-/* USB OTG FS
- *
- * PA9  OTG_FS_VBUS VBUS sensing (also connected to the green LED)
- * PC0  OTG_FS_PowerSwitchOn
- * PD5  OTG_FS_Overcurrent
- */
 
-#define GPIO_OTGFS_VBUS   (GPIO_INPUT|GPIO_FLOAT|GPIO_SPEED_100MHz|\
-                           GPIO_OPENDRAIN|GPIO_PORTA|GPIO_PIN9)
-#define GPIO_OTGFS_PWRON  (GPIO_OUTPUT|GPIO_FLOAT|GPIO_SPEED_100MHz|\
-                           GPIO_PUSHPULL|GPIO_PORTC|GPIO_PIN0)
 
-#ifdef CONFIG_USBHOST
-#  define GPIO_OTGFS_OVER (GPIO_INPUT|GPIO_EXTI|GPIO_FLOAT|\
-                           GPIO_SPEED_100MHz|GPIO_PUSHPULL|\
-                           GPIO_PORTD|GPIO_PIN5)
+/* GPIO pins used by the GPIO Subsystem   ---add by  herc*/
 
-#else
-#  define GPIO_OTGFS_OVER (GPIO_INPUT|GPIO_FLOAT|GPIO_SPEED_100MHz|\
-                           GPIO_PUSHPULL|GPIO_PORTD|GPIO_PIN5)
-#endif
+#define BOARD_NGPIOIN     1 /* Amount of GPIO Input pins */
+#define BOARD_NGPIOOUT    1 /* Amount of GPIO Output pins */
+#define BOARD_NGPIOINT    1 /* Amount of GPIO Input w/ Interruption pins */
+
+//#define GPIO_IN1          (GPIO_INPUT|GPIO_FLOAT|GPIO_PORTB|GPIO_PIN8)
+//#define GPIO_OUT1         (GPIO_OUTPUT|GPIO_FLOAT|GPIO_PORTB|GPIO_PIN8)
+//#define GPIO_INT1         (GPIO_INPUT|GPIO_FLOAT|GPIO_PORTB|GPIO_PIN8)
+
+#define GPIO_IN1          (GPIO_PORTB | GPIO_PIN9 | GPIO_INPUT | GPIO_SPEED_50MHz)
+#define GPIO_OUT1         (GPIO_PORTB | GPIO_PIN8 | GPIO_OUTPUT_CLEAR | GPIO_OUTPUT | GPIO_PULLUP | GPIO_SPEED_50MHz)
+#define GPIO_INT1         (GPIO_INPUT|GPIO_FLOAT|GPIO_PORTB|GPIO_PIN12)
+
+
+/* 
+*   PWM   ----------herc
+*/
+
+/* PWM Configuration */
+
+#define STM32F411MINIMUM_PWMTIMER   3
+#define STM32F411MINIMUM_PWMCHANNEL 4
 
 /* procfs File System */
 
@@ -124,32 +118,6 @@ extern struct spi_dev_s *g_spi2;
 
 void stm32_spidev_initialize(void);
 
-/****************************************************************************
- * Name: stm32_usbinitialize
- *
- * Description:
- *   Called from stm32_boardinitialize very early in initialization to setup
- *   USB-related GPIO pins for the STM32F4Discovery board.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_STM32_OTGFS
-void stm32_usbinitialize(void);
-#endif
-
-/****************************************************************************
- * Name: stm32_usbhost_initialize
- *
- * Description:
- *   Called at application startup time to initialize the USB host
- *   functionality.  This function will start a thread that will monitor for
- *   device connection/disconnection events.
- *
- ****************************************************************************/
-
-#if defined(CONFIG_STM32_OTGFS) && defined(CONFIG_USBHOST)
-int stm32_usbhost_initialize(void);
-#endif
 
 /****************************************************************************
  * Name: stm32_bringup
@@ -166,5 +134,40 @@ int stm32_usbhost_initialize(void);
  ****************************************************************************/
 
 int stm32_bringup(void);
+
+/****************************************************************************
+ * Name: stm32_gpio_initialize
+ *
+ * Description:
+ *   Initialize GPIO drivers for use with /apps/examples/gpio
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_DEV_GPIO
+int stm32_gpio_initialize(void);
+#endif
+
+/****************************************************************************
+ * Name: stm32_pwm_setup
+ *
+ * Description:
+ *   PWM initialization               herc
+ *
+ ****************************************************************************/
+#ifdef CONFIG_PWM
+int stm32_pwm_setup(void);
+#endif
+
+/****************************************************************************
+ * Name: stm32_gpio_initialize
+ *
+ * Description:
+ *   Initialize GPIO drivers for use with /apps/examples/gpio        herc
+ *
+ ****************************************************************************/
+#ifdef CONFIG_DEV_GPIO
+int stm32_gpio_initialize(void);
+#endif
+
 
 #endif /* __BOARDS_ARM_STM32_STM32F411_MINIMUM_SRC_STM32F411_MINIMUM_H */

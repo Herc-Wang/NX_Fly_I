@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/stm32/stm32f411-minimum/src/stm32_boot.c
+ * boards/arm/stm32/stm32f103-minimum/src/stm32_pwm.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,70 +24,97 @@
 
 #include <nuttx/config.h>
 
+#include <sys/types.h>
+#include <errno.h>
 #include <debug.h>
 
-#include <nuttx/arch.h>
 #include <nuttx/board.h>
+#include <nuttx/timers/pwm.h>
 
 #include <arch/board/board.h>
 
+#include "chip.h"
 #include "arm_arch.h"
+#include "stm32_pwm.h"
 #include "stm32f411-minimum.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* Configuration ************************************************************/
+
+/* PWM
+ *	PWM1---PA6	TIM3_CH1
+ *	PWM2---PA7	TIM3_CH2
+ *	PWM3---PB0	TIM3_CH3
+ *	PWM4---PB1	TIM3_CH4
+ *
+ */
+
+#define HAVE_PWM 1
+
+#ifndef CONFIG_PWM
+#  undef HAVE_PWM
+#endif
+
+#ifndef CONFIG_STM32_TIM3
+#  undef HAVE_PWM
+#endif
+
+#ifndef CONFIG_STM32_TIM3_PWM
+#  undef HAVE_PWM
+#endif
+
+#if !defined(CONFIG_STM32_TIM3_CHANNEL)
+#  undef HAVE_PWM
+#endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: stm32_boardinitialize
+ * Name: stm32_pwm_setup
  *
  * Description:
- *   All STM32 architectures must provide the following entry point.  This
- *   entry point is called early in the initialization -- after all memory
- *   has been configured and mapped but before any devices have been
- *   initialized.
+ *   Initialize PWM and register the PWM device.
  *
  ****************************************************************************/
 
-void stm32_boardinitialize(void)
+int stm32_pwm_setup(void)
 {
-  _alert("\r\n arrive 1\r\n");
-#ifdef CONFIG_ARCH_LEDS
-  /* Configure on-board LEDs if LED support has been selected. */
+  static bool initialized = false;
+  struct pwm_lowerhalf_s *pwm;
+  int ret;
 
-  board_autoled_initialize();
-#endif
+  /* Have we already initialized? */
 
-#if defined(CONFIG_STM32_SPI1) || defined(CONFIG_STM32_SPI2) || \
-    defined(CONFIG_STM32_SPI3)
-  /* Configure SPI chip selects if 1) SP2 is not disabled, and 2) the
-   * weak function stm32_spidev_initialize() has been brought into the link.
-   */
+  if (!initialized)
+    {
+      /* Call stm32_pwminitialize() to get an instance of the PWM interface */
+      pwm = stm32_pwminitialize(STM32F411MINIMUM_PWMTIMER);
+      if (!pwm)
+        {
+          aerr("ERROR: Failed to get the STM32 PWM lower half\n");
+          return -ENODEV;
+        }
 
-  stm32_spidev_initialize();
-#endif
+      /* Register the PWM driver at "/dev/pwm0" */
+
+      ret = pwm_register("/dev/pwm0", pwm);
+      if (ret < 0)
+        {
+          aerr("ERROR: pwm_register failed: %d\n", ret);
+          return ret;
+        }
+
+
+      /* Now we are initialized */
+
+      initialized = true;
+    }
+
+  return OK;
 
 }
-
-/****************************************************************************
- * Name: board_late_initialize
- *
- * Description:
- *   If CONFIG_BOARD_LATE_INITIALIZE is selected, then an additional
- *   initialization call will be performed in the boot-up sequence to a
- *   function called board_late_initialize().  board_late_initialize() will
- *   be called immediately after up_initialize() is called and just before
- *   the initial application is started.  This additional initialization
- *   phase may be used, for example, to initialize board-specific device
- *   drivers.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_BOARD_LATE_INITIALIZE
-void board_late_initialize(void)
-{
-  /* Perform board-specific initialization */
-
-  stm32_bringup();
-}
-#endif

@@ -995,6 +995,7 @@ config ARCH_CHIP_STM32F411CE
 	bool "STM32F411CE"
 	select STM32_STM32F4XXX
 	select STM32_STM32F411
+	select STM32_CONNECTIVITYLINE
 
 config ARCH_CHIP_STM32F411RE
 	bool "STM32F411RE"
@@ -1344,18 +1345,9 @@ config STM32_CONNECTIVITYLINE
 	bool
 	default n
 	select STM32_HAVE_OTGFS
-	select STM32_HAVE_USART3
-	select STM32_HAVE_UART4
-	select STM32_HAVE_UART5
 	select STM32_HAVE_TIM1
+	select STM32_HAVE_TIM3
 	select STM32_HAVE_TIM5
-	select STM32_HAVE_TIM6
-	select STM32_HAVE_TIM7
-	select STM32_HAVE_ADC2
-	select STM32_HAVE_CAN1
-	select STM32_HAVE_CAN2
-	select STM32_HAVE_ETHMAC
-	select STM32_HAVE_SPI2
 	select STM32_HAVE_SPI3
 
 config STM32_PERFORMANCELINE
@@ -3319,11 +3311,11 @@ config STM32_SYSCFG_IOCOMPENSATION
 		from 2.4 to 3.6 V.
 
 menu "Alternate Pin Mapping"
-	depends on STM32_STM32F10XX || STM32_CONNECTIVITYLINE
+	depends on STM32_CONNECTIVITYLINE
 
 choice
 	prompt "CAN1 Alternate Pin Mappings"
-	depends on STM32_STM32F10XX && STM32_CAN1
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_CAN1
 	default STM32_CAN1_NO_REMAP
 
 config STM32_CAN1_NO_REMAP
@@ -3345,7 +3337,7 @@ config STM32_CAN2_REMAP
 config STM32_CEC_REMAP
 	bool "CEC Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_CEC
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_CEC
 
 config STM32_ETH_REMAP
 	bool "Ethernet Alternate Pin Mapping"
@@ -3355,26 +3347,26 @@ config STM32_ETH_REMAP
 config STM32_I2C1_REMAP
 	bool "I2C1 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_I2C1
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_I2C1
 
 config STM32_SPI1_REMAP
 	bool "SPI1 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_SPI1
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_SPI1
 
 config STM32_SPI3_REMAP
 	bool "SPI3 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_SPI3 && !STM32_VALUELINE
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_SPI3 && !STM32_VALUELINE
 
 config STM32_I2S3_REMAP
 	bool "I2S3 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_I2S3 && !STM32_VALUELINE
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_I2S3 && !STM32_VALUELINE
 
 choice
 	prompt "TIM1 Alternate Pin Mappings"
-	depends on STM32_STM32F10XX && STM32_TIM1
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM1
 	default STM32_TIM1_NO_REMAP
 
 config STM32_TIM1_NO_REMAP
@@ -3390,7 +3382,7 @@ endchoice
 
 choice
 	prompt "TIM2 Alternate Pin Mappings"
-	depends on STM32_STM32F10XX && STM32_TIM2
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM2
 	default STM32_TIM2_NO_REMAP
 
 config STM32_TIM2_NO_REMAP
@@ -3409,7 +3401,7 @@ endchoice
 
 choice
 	prompt "TIM3 Alternate Pin Mappings"
-	depends on STM32_STM32F10XX && STM32_TIM3
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM3
 	default STM32_TIM3_NO_REMAP
 
 config STM32_TIM3_NO_REMAP
@@ -3426,66 +3418,66 @@ endchoice
 config STM32_TIM4_REMAP
 	bool "TIM4 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM4
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM4
 
 config STM32_TIM9_REMAP
 	bool "TIM9 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM9
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM9
 
 config STM32_TIM10_REMAP
 	bool "TIM10 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM10
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM10
 
 config STM32_TIM11_REMAP
 	bool "TIM11 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM11
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM11
 
 config STM32_TIM12_REMAP
 	bool "TIM12 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM12
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM12
 
 config STM32_TIM13_REMAP
 	bool "TIM13 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM13
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM13
 
 config STM32_TIM14_REMAP
 	bool "TIM14 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM14
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM14
 
 config STM32_TIM15_REMAP
 	bool "TIM15 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM15
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM15
 
 config STM32_TIM16_REMAP
 	bool "TIM16 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM16
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM16
 
 config STM32_TIM17_REMAP
 	bool "TIM17 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM17
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_TIM17
 
 config STM32_USART1_REMAP
 	bool "USART1 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_USART1
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_USART1
 
 config STM32_USART2_REMAP
 	bool "USART2 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_USART2
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_USART2
 
 choice
 	prompt "USART3 Alternate Pin Mappings"
-	depends on STM32_STM32F10XX && STM32_USART3
+	depends on (STM32_STM32F10XX || STM32_STM32F4XXX) && STM32_USART3
 	default STM32_USART3_NO_REMAP
 
 config STM32_USART3_NO_REMAP
