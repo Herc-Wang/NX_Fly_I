@@ -77,7 +77,7 @@
 
 /* Masks and shifts @v into bit field @m */
 
-#define TO_BITFIELD(m,v) ((v) & MASK(m ##__WIDTH) << (m ##__SHIFT))
+#define TO_BITFIELD(m,v) (((v) & MASK(m ##__WIDTH)) << (m ##__SHIFT))
 
 /* Un-masks and un-shifts bit field @m from @v */
 
@@ -94,10 +94,20 @@
 
 enum mpu_regaddr_e
 {
-  SELF_TEST_X = 0x0d,
-  SELF_TEST_Y = 0x0e,
-  SELF_TEST_Z = 0x0f,
-  SELF_TEST_A = 0x10,
+  SELF_TEST_X_GYRO  = 0x00,
+  SELF_TEST_Y_GYRO  = 0x01,
+  SELF_TEST_Z_GYRO  = 0x02,
+  SELF_TEST_X_ACC   = 0x0d,
+  SELF_TEST_Y_ACC   = 0x0e,
+  SELF_TEST_Z_ACC   = 0x0f,
+  //SELF_TEST_A = 0x10,
+  XG_OFFSET_H       = 0x13,
+  XG_OFFSET_L       = 0x14,
+  YG_OFFSET_H       = 0x15,
+  YG_OFFSET_L       = 0x16,
+  ZG_OFFSET_H       = 0x17,
+  ZG_OFFSET_L       = 0x18,
+  
   SMPLRT_DIV = 0x19,
 
   /* __SHIFT : number of empty bits to the right of the field
@@ -125,6 +135,9 @@ enum mpu_regaddr_e
   ACCEL_CONFIG__ZA_ST = BIT(5),
   ACCEL_CONFIG__AFS_SEL__SHIFT = 3,
   ACCEL_CONFIG__AFS_SEL__WIDTH = 2,
+
+  ACCEL_CONFIG_2 = 0x1d,      //this reg only vaild to mpu9250
+  LP_ACCEL_ODR   = 0x1e,
 
   MOT_THR = 0x1f,
   FIFO_EN = 0x23,
@@ -235,6 +248,13 @@ enum mpu_regaddr_e
   FIFO_COUNTL = 0x73,
   FIFO_R_W = 0x74,
   WHO_AM_I = 0x75,            /* RO reset: 0x68 */
+
+  XA_OFFSET_H = 0x77,
+  XA_OFFSET_L = 0x78,
+  YA_OFFSET_H = 0x7A,
+  YA_OFFSET_L = 0x7B,
+  ZA_OFFSET_H = 0x7D,
+  ZA_OFFSET_L = 0x7E
 };
 
 /* Describes the mpu60x0 sensor register file. This structure reflects
@@ -251,6 +271,7 @@ begin_packed_struct struct sensor_data_s
   int16_t y_gyro;
   int16_t z_gyro;
 } end_packed_struct;
+
 
 /* Used by the driver to manage the device */
 
@@ -601,6 +622,18 @@ static inline int __mpu_write_user_ctrl(FAR struct mpu_dev_s *dev,
   return __mpu_write_reg(dev, USER_CTRL, &val, sizeof(val));
 }
 
+static inline int __mpu_write_INT_ENABLE(FAR struct mpu_dev_s *dev,
+                                         uint8_t val)
+{
+  return __mpu_write_reg(dev, INT_ENABLE, &val, sizeof(val));
+}
+
+static inline int __mpu_write_SMPLRT_DIV(FAR struct mpu_dev_s *dev,
+                                         uint8_t val)
+{
+  return __mpu_write_reg(dev, SMPLRT_DIV, &val, sizeof(val));
+}
+
 /* __mpu_write_gyro_config() :
  *
  * Sets the @fs_sel bit in GYRO_CONFIG to the value provided. Per the
@@ -622,6 +655,7 @@ static inline int __mpu_write_gyro_config(FAR struct mpu_dev_s *dev,
                                           uint8_t fs_sel)
 {
   uint8_t val = TO_BITFIELD(GYRO_CONFIG__FS_SEL, fs_sel);
+  //uint8_t val = ((fs_sel & MASK(GYRO_CONFIG__FS_SEL__WIDTH)) << (GYRO_CONFIG__FS_SEL__SHIFT));
   return __mpu_write_reg(dev, GYRO_CONFIG, &val, sizeof(val));
 }
 
@@ -647,6 +681,12 @@ static inline int __mpu_write_accel_config(FAR struct mpu_dev_s *dev,
 {
   uint8_t val = TO_BITFIELD(ACCEL_CONFIG__AFS_SEL, afs_sel);
   return __mpu_write_reg(dev, ACCEL_CONFIG, &val, sizeof(val));
+}
+
+static inline int __mpu_write_accel_config_2(FAR struct mpu_dev_s *dev,
+                                           uint8_t val)
+{
+  return __mpu_write_reg(dev, ACCEL_CONFIG_2, &val, sizeof(val));
 }
 
 /* CONFIG (0x1a) :   x   x   EXT_SYNC_SET[2..0] DLPF_CFG[2..0]
@@ -693,6 +733,8 @@ static void inline mpu_unlock(FAR struct mpu_dev_s *dev)
 
 static int mpu_reset(FAR struct mpu_dev_s *dev)
 {
+  uint8_t val;
+
 #ifdef CONFIG_MPU60X0_SPI
   if (dev->config.spi == NULL)
     {
@@ -704,35 +746,7 @@ static int mpu_reset(FAR struct mpu_dev_s *dev)
       return -EINVAL;
     }
 #endif
-
-  mpu_lock(dev);
-
-  /* Awaken chip, issue hardware reset */
-
-  __mpu_write_pwr_mgmt_1(dev, PWR_MGMT_1__DEVICE_RESET);
-
-  /* Wait for reset cycle to finish (note: per the datasheet, we don't need
-   * to hold NSS for this)
-   */
-
-  do
-    {
-      nxsig_usleep(50000);            /* usecs (arbitrary) */
-    }
-  while (__mpu_read_pwr_mgmt_1(dev) & PWR_MGMT_1__DEVICE_RESET);
-
-  /* Reset signal paths */
-
-  __mpu_write_signal_path_reset(dev, SIGNAL_PATH_RESET__ALL_RESET);
-  nxsig_usleep(2000);
-
-  /* Disable SLEEP, use PLL with z-axis clock source */
-
-  __mpu_write_pwr_mgmt_1(dev, 3);
-  nxsig_usleep(2000);
-
   /* Disable i2c if we're on spi. */
-
 #ifdef CONFIG_MPU60X0_SPI
   if (dev->config.spi)
     {
@@ -740,25 +754,51 @@ static int mpu_reset(FAR struct mpu_dev_s *dev)
     }
 #endif
 
-  /* Disable low-power mode, enable all gyros and accelerometers */
+  mpu_lock(dev);
 
-  __mpu_write_pwr_mgmt_2(dev, 0);
+  //check whether the mpu60x0 is connected?
+  do
+  {
+    __mpu_read_reg(dev, WHO_AM_I, &val, sizeof(val));
+    if(val == 0x71)
+    {
+      break;
+    }
+    printf("\rMPU9250 no connect...\r\n");
+  }while(1);
 
-  /* No FSYNC, set accel LPF at 184 Hz, gyro LPF at 188 Hz */
+  __mpu_write_pwr_mgmt_1(dev, PWR_MGMT_1__DEVICE_RESET);
+  nxsig_usleep(100000); 
 
-  __mpu_write_config(dev, 0, 1);
+  /* Wait for reset cycle to finish (note: per the datasheet, we don't need
+   * to hold NSS for this)
+   */
 
-  /* ± 1000 deg/sec */
+  //唤醒MPU9250，并选择陀螺仪x轴PLL为时钟源
+  __mpu_write_pwr_mgmt_1(dev, 1);
 
-  __mpu_write_gyro_config(dev, 2);
+  /*禁止中断*/
+  __mpu_write_INT_ENABLE(dev, 0);
 
-  /* ± 8g */
+  /*set Accelerometer low pass filter below 44.8Hz */ 
+  __mpu_write_accel_config_2(dev, 3);
 
-  __mpu_write_accel_config(dev, 2);
+  /* set sample rate divider at 0 ,no divider */ 
+  __mpu_write_SMPLRT_DIV(dev, 0);
 
-  /* clear INT on any read (we aren't using that pin right now) */
+  /* MPU 可直接访问MPU9250辅助I2C */ 
+  //__mpu_write_int_pin_cfg(dev, 2);
 
-  __mpu_write_int_pin_cfg(dev, INT_PIN_CFG__INT_RD_CLEAR);
+  /* No FSYNC, set accel LPF at 94 Hz, gyro LPF at 98 Hz */    
+  __mpu_write_config(dev, 0,0);
+
+  /* ± 2000 deg/sec */
+  __mpu_write_gyro_config(dev, 3);
+
+  /* ± 4g */
+  __mpu_write_accel_config(dev, 1);
+
+  mpu_reg_dump(dev);
 
   mpu_unlock(dev);
   return 0;
@@ -851,6 +891,7 @@ static ssize_t mpu_read(FAR struct file *filep, FAR char *buf, size_t len)
 {
   FAR struct inode *inode = filep->f_inode;
   FAR struct mpu_dev_s *dev = inode->i_private;
+  //uint8_t buf_printf[14];
   size_t send_len = 0;
 
   mpu_lock(dev);
@@ -873,8 +914,12 @@ static ssize_t mpu_read(FAR struct file *filep, FAR char *buf, size_t len)
   if (send_len)
     {
       memcpy(buf, ((uint8_t *)&dev->buf) + dev->bufpos, send_len);
+      /**************test code *****************************/
+      //memcpy(buf_printf, buf, send_len);  
+      //memory_dump(buf,send_len);
+      /**************test code   end*****************************/
     }
-
+  
   /* Move the cursor, to mark them as sent. */
 
   dev->bufpos += send_len;
@@ -1010,4 +1055,216 @@ int mpu60x0_register(FAR const char *path, FAR struct mpu_config_s *config)
   /* Reset the chip, to give it an initial configuration. */
 
   return mpu_reset(priv);
+}
+
+
+
+/***********************debug code *************************/
+void mpu_reg_dump(FAR struct mpu_dev_s *dev)
+{
+  uint8_t val;
+
+  printf("\r\n*******************reg***********************\r\n");
+
+  __mpu_read_reg(dev, SELF_TEST_X_GYRO, &val, sizeof(val));
+  printf("SELF_TEST_X_GYRO = %x\r\n", val);
+  __mpu_read_reg(dev, SELF_TEST_Y_GYRO, &val, sizeof(val));
+  printf("SELF_TEST_Y_GYRO = %x\r\n", val);
+  __mpu_read_reg(dev, SELF_TEST_Z_GYRO, &val, sizeof(val));
+  printf("SELF_TEST_Z_GYRO = %x\r\n", val);
+  __mpu_read_reg(dev, SELF_TEST_X_ACC, &val, sizeof(val));
+  printf("SELF_TEST_X_ACC = %x\r\n", val);
+  __mpu_read_reg(dev, SELF_TEST_Y_ACC, &val, sizeof(val));
+  printf("SELF_TEST_Y_ACC = %x\r\n", val);
+  __mpu_read_reg(dev, SELF_TEST_Z_ACC, &val, sizeof(val));
+  printf("SELF_TEST_Z_ACC = %x\r\n", val);
+  __mpu_read_reg(dev, XG_OFFSET_H, &val, sizeof(val));
+  printf("XG_OFFSET_H = %x\r\n", val);
+  __mpu_read_reg(dev, XG_OFFSET_L, &val, sizeof(val));
+  printf("XG_OFFSET_L = %x\r\n", val);
+  __mpu_read_reg(dev, YG_OFFSET_H, &val, sizeof(val));
+  printf("YG_OFFSET_H = %x\r\n", val);
+  __mpu_read_reg(dev, YG_OFFSET_L, &val, sizeof(val));
+  printf("YG_OFFSET_L = %x\r\n", val);
+  __mpu_read_reg(dev, ZG_OFFSET_H, &val, sizeof(val));
+  printf("ZG_OFFSET_H = %x\r\n", val);
+  __mpu_read_reg(dev, ZG_OFFSET_L, &val, sizeof(val));
+  printf("ZG_OFFSET_L = %x\r\n", val);
+
+  __mpu_read_reg(dev, SMPLRT_DIV, &val, sizeof(val));
+  printf("SMPLRT_DIV = %x\r\n", val);
+  __mpu_read_reg(dev, CONFIG, &val, sizeof(val));
+  printf("CONFIG = %x\r\n", val);
+  __mpu_read_reg(dev, GYRO_CONFIG, &val, sizeof(val));
+  printf("GYRO_CONFIG = %x\r\n", val);
+  __mpu_read_reg(dev, ACCEL_CONFIG, &val, sizeof(val));
+  printf("ACCEL_CONFIG = %x\r\n", val);
+  __mpu_read_reg(dev, ACCEL_CONFIG_2, &val, sizeof(val));
+  printf("ACCEL_CONFIG_2 = %x\r\n", val);
+  __mpu_read_reg(dev, LP_ACCEL_ODR, &val, sizeof(val));
+  printf("LP_ACCEL_ODR = %x\r\n", val);
+  __mpu_read_reg(dev, MOT_THR, &val, sizeof(val));
+  printf("MOT_THR = %x\r\n", val);
+  __mpu_read_reg(dev, FIFO_EN, &val, sizeof(val));
+  printf("FIFO_EN = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_MST_CTRL, &val, sizeof(val));
+  printf("I2C_MST_CTRL = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV0_ADDR, &val, sizeof(val));
+  printf("I2C_SLV0_ADDR = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV0_REG, &val, sizeof(val));
+  printf("I2C_SLV0_REG = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV0_CTRL, &val, sizeof(val));
+  printf("I2C_SLV0_CTRL = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV1_ADDR, &val, sizeof(val));
+  printf("I2C_SLV1_ADDR = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV1_REG, &val, sizeof(val));
+  printf("I2C_SLV1_REG = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV1_CTRL, &val, sizeof(val));
+  printf("I2C_SLV1_CTRL = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV2_ADDR, &val, sizeof(val));
+  printf("I2C_SLV2_ADDR = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV2_REG, &val, sizeof(val));
+  printf("I2C_SLV2_REG = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV2_CTRL, &val, sizeof(val));
+  printf("I2C_SLV2_CTRL = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV3_ADDR, &val, sizeof(val));
+  printf("I2C_SLV3_ADDR = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV3_REG, &val, sizeof(val));
+  printf("I2C_SLV3_REG = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV3_CTRL, &val, sizeof(val));
+  printf("I2C_SLV3_CTRL = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV4_ADDR, &val, sizeof(val));
+  printf("I2C_SLV4_ADDR = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV4_REG, &val, sizeof(val));
+  printf("I2C_SLV4_REG = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV4_DO, &val, sizeof(val));
+  printf("I2C_SLV4_DO = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV4_CTRL, &val, sizeof(val));
+  printf("I2C_SLV4_CTRL = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV4_DI, &val, sizeof(val));
+  printf("I2C_SLV4_DI = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_MST_STATUS, &val, sizeof(val));
+  printf("I2C_MST_STATUS = %x\r\n", val);
+  __mpu_read_reg(dev, INT_PIN_CFG, &val, sizeof(val));
+  printf("INT_PIN_CFG = %x\r\n", val);
+  __mpu_read_reg(dev, INT_ENABLE, &val, sizeof(val));
+  printf("INT_ENABLE = %x\r\n", val);
+  __mpu_read_reg(dev, INT_STATUS, &val, sizeof(val));
+  printf("INT_STATUS = %x\r\n", val);
+  __mpu_read_reg(dev, ACCEL_XOUT_H, &val, sizeof(val));
+  printf("ACCEL_XOUT_H = %x\r\n", val);
+  __mpu_read_reg(dev, ACCEL_XOUT_L, &val, sizeof(val));
+  printf("ACCEL_XOUT_L = %x\r\n", val);
+  __mpu_read_reg(dev, ACCEL_YOUT_H, &val, sizeof(val));
+  printf("ACCEL_YOUT_H = %x\r\n", val);
+  __mpu_read_reg(dev, ACCEL_YOUT_L, &val, sizeof(val));
+  printf("ACCEL_YOUT_L = %x\r\n", val);
+  __mpu_read_reg(dev, ACCEL_ZOUT_H, &val, sizeof(val));
+  printf("ACCEL_ZOUT_H = %x\r\n", val);
+  __mpu_read_reg(dev, ACCEL_ZOUT_L, &val, sizeof(val));
+  printf("ACCEL_ZOUT_L = %x\r\n", val);
+  __mpu_read_reg(dev, TEMP_OUT_H, &val, sizeof(val));
+  printf("TEMP_OUT_H = %x\r\n", val);
+  __mpu_read_reg(dev, TEMP_OUT_L, &val, sizeof(val));
+  printf("TEMP_OUT_L = %x\r\n", val);
+  __mpu_read_reg(dev, GYRO_XOUT_H, &val, sizeof(val));
+  printf("GYRO_XOUT_H = %x\r\n", val);
+  __mpu_read_reg(dev, GYRO_XOUT_L, &val, sizeof(val));
+  printf("GYRO_XOUT_L = %x\r\n", val);
+  __mpu_read_reg(dev, GYRO_YOUT_H, &val, sizeof(val));
+  printf("GYRO_YOUT_H = %x\r\n", val);
+  __mpu_read_reg(dev, GYRO_YOUT_L, &val, sizeof(val));
+  printf("GYRO_YOUT_L = %x\r\n", val);
+  __mpu_read_reg(dev, GYRO_ZOUT_H, &val, sizeof(val));
+  printf("GYRO_ZOUT_H = %x\r\n", val);
+  __mpu_read_reg(dev, GYRO_ZOUT_L, &val, sizeof(val));
+  printf("GYRO_ZOUT_L = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_00, &val, sizeof(val));
+  printf("EXT_SENS_DATA_00 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_01, &val, sizeof(val));
+  printf("EXT_SENS_DATA_01 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_02, &val, sizeof(val));
+  printf("EXT_SENS_DATA_02 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_03, &val, sizeof(val));
+  printf("EXT_SENS_DATA_03 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_04, &val, sizeof(val));
+  printf("EXT_SENS_DATA_04 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_05, &val, sizeof(val));
+  printf("EXT_SENS_DATA_05 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_06, &val, sizeof(val));
+  printf("EXT_SENS_DATA_06 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_07, &val, sizeof(val));
+  printf("EXT_SENS_DATA_07 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_08, &val, sizeof(val));
+  printf("EXT_SENS_DATA_08 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_09, &val, sizeof(val));
+  printf("EXT_SENS_DATA_09 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_10, &val, sizeof(val));
+  printf("EXT_SENS_DATA_10 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_11, &val, sizeof(val));
+  printf("EXT_SENS_DATA_11 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_12, &val, sizeof(val));
+  printf("EXT_SENS_DATA_12 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_13, &val, sizeof(val));
+  printf("EXT_SENS_DATA_13 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_14, &val, sizeof(val));
+  printf("EXT_SENS_DATA_14 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_15, &val, sizeof(val));
+  printf("EXT_SENS_DATA_15 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_16, &val, sizeof(val));
+  printf("EXT_SENS_DATA_16 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_17, &val, sizeof(val));
+  printf("EXT_SENS_DATA_17 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_18, &val, sizeof(val));
+  printf("EXT_SENS_DATA_18 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_19, &val, sizeof(val));
+  printf("EXT_SENS_DATA_19 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_20, &val, sizeof(val));
+  printf("EXT_SENS_DATA_20 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_21, &val, sizeof(val));
+  printf("EXT_SENS_DATA_21 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_22, &val, sizeof(val));
+  printf("EXT_SENS_DATA_22 = %x\r\n", val);
+  __mpu_read_reg(dev, EXT_SENS_DATA_23, &val, sizeof(val));
+  printf("EXT_SENS_DATA_23 = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV0_DO, &val, sizeof(val));
+  printf("I2C_SLV0_DO = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV1_DO, &val, sizeof(val));
+  printf("I2C_SLV1_DO = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV2_DO, &val, sizeof(val));
+  printf("I2C_SLV2_DO = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_SLV3_DO, &val, sizeof(val));
+  printf("I2C_SLV3_DO = %x\r\n", val);
+  __mpu_read_reg(dev, I2C_MST_DELAY_CTRL, &val, sizeof(val));
+  printf("I2C_MST_DELAY_CTRL = %x\r\n", val);
+  __mpu_read_reg(dev, SIGNAL_PATH_RESET, &val, sizeof(val));
+  printf("SIGNAL_PATH_RESET = %x\r\n", val);
+  __mpu_read_reg(dev, MOT_DETECT_CTRL, &val, sizeof(val));
+  printf("MOT_DETECT_CTRL = %x\r\n", val);
+  __mpu_read_reg(dev, USER_CTRL, &val, sizeof(val));
+  printf("USER_CTRL = %x\r\n", val);
+  __mpu_read_reg(dev, PWR_MGMT_1, &val, sizeof(val));
+  printf("PWR_MGMT_1 = %x\r\n", val);
+  __mpu_read_reg(dev, PWR_MGMT_2, &val, sizeof(val));
+  printf("PWR_MGMT_2 = %x\r\n", val);
+  __mpu_read_reg(dev, FIFO_COUNTH, &val, sizeof(val));
+  printf("FIFO_COUNTH = %x\r\n", val);
+  __mpu_read_reg(dev, FIFO_COUNTL, &val, sizeof(val));
+  printf("FIFO_COUNTL = %x\r\n", val);
+  __mpu_read_reg(dev, FIFO_R_W, &val, sizeof(val));
+  printf("FIFO_R_W = %x\r\n", val);
+  __mpu_read_reg(dev, WHO_AM_I, &val, sizeof(val));
+  printf("WHO_AM_I = %x\r\n", val);
+  __mpu_read_reg(dev, XA_OFFSET_H, &val, sizeof(val));
+  printf("XA_OFFSET_H = %x\r\n", val);
+  __mpu_read_reg(dev, XA_OFFSET_L, &val, sizeof(val));
+  printf("XA_OFFSET_L = %x\r\n", val);
+  __mpu_read_reg(dev, YA_OFFSET_H, &val, sizeof(val));
+  printf("YA_OFFSET_H = %x\r\n", val);
+  __mpu_read_reg(dev, YA_OFFSET_L, &val, sizeof(val));
+  printf("YA_OFFSET_L = %x\r\n", val);
+  __mpu_read_reg(dev, ZA_OFFSET_H, &val, sizeof(val));
+  printf("ZA_OFFSET_H = %x\r\n", val);
+  __mpu_read_reg(dev, ZA_OFFSET_L, &val, sizeof(val));
+  printf("ZA_OFFSET_L = %x\r\n", val);
 }

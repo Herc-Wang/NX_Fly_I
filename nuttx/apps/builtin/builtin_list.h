@@ -1,4 +1,5 @@
 { "sh", 100, 2048, sh_main },
+{ "mpu60x0_i2c", SCHED_PRIORITY_DEFAULT, 2048, mpu60x0_i2c_main },
 { "pwm", SCHED_PRIORITY_DEFAULT, 2048, pwm_main },
 { "nsh", 100, 2048, nsh_main },
 { "gpio", 100, 2048, gpio_main },

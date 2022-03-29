@@ -85,6 +85,27 @@
 #define STM32F411MINIMUM_PWMTIMER   3
 #define STM32F411MINIMUM_PWMCHANNEL 4
 
+/* I2C   ----------herc
+*
+*/
+#define I2C_BUS   1
+
+/* I2c Configuration  this part finaly will define and set in the menuconfig, in other way ,set in Kconig*/
+//#define CONFIG_STM32_I2CBUS_ID 1
+//#define MPU60X0_I2C_BUS   1 /* MPU60X0 connected to I2C1 */
+//#define MPU60X0_MINOR     1
+
+/* MPU60X0   ----------herc */
+
+//#define I2C_BUS_MPU60X0   1
+
+#define I2C_MINOR_MPU60X0  0
+#define GPIO_EXTI_MPU60X0 (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_50MHz | \
+                           GPIO_OPENDRAIN | GPIO_PORTB | GPIO_PIN4)
+#define DEVNODE_MPU60X0   "/dev/imu0"
+
+
+
 /* procfs File System */
 
 #ifdef CONFIG_FS_PROCFS
@@ -104,9 +125,7 @@
 #ifdef CONFIG_STM32_SPI1
 extern struct spi_dev_s *g_spi1;
 #endif
-#ifdef CONFIG_STM32_SPI2
-extern struct spi_dev_s *g_spi2;
-#endif
+
 
 /****************************************************************************
  * Name: stm32_spidev_initialize
@@ -168,6 +187,18 @@ int stm32_pwm_setup(void);
 #ifdef CONFIG_DEV_GPIO
 int stm32_gpio_initialize(void);
 #endif
+
+/****************************************************************************
+ * Name: stm32_mpu60x0_initialize
+ *
+ * Description:
+ *   Initialize MPU60X0 drivers for use with /apps/examples/XX        herc
+ *
+ ****************************************************************************/
+#ifdef CONFIG_SENSORS_MPU60X0
+int stm32_mpu60x0_initialize(FAR struct i2c_master_s *i2cbus);
+#endif
+
 
 
 #endif /* __BOARDS_ARM_STM32_STM32F411_MINIMUM_SRC_STM32F411_MINIMUM_H */

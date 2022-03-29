@@ -156,4 +156,5 @@ source "/home/herc/MyGithubCode/NX_Fly_I/nuttx/apps/examples/wget/Kconfig"
 source "/home/herc/MyGithubCode/NX_Fly_I/nuttx/apps/examples/xbc_test/Kconfig"
 source "/home/herc/MyGithubCode/NX_Fly_I/nuttx/apps/examples/xmlrpc/Kconfig"
 source "/home/herc/MyGithubCode/NX_Fly_I/nuttx/apps/examples/zerocross/Kconfig"
+source "/home/herc/MyGithubCode/NX_Fly_I/nuttx/apps/examples/mpu60x0_i2c/Kconfig"
 endmenu # Examples

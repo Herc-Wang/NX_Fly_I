@@ -6,3 +6,5 @@ nuttx/apps/builtin/registry/gpio.bdat
 nuttx/apps/builtin/registry/gpio.pdat
 nuttx/apps/builtin/registry/pwm.bdat
 nuttx/apps/builtin/registry/pwm.pdat
+nuttx/apps/builtin/registry/mpu60x0_i2c.bdat
+nuttx/apps/builtin/registry/mpu60x0_i2c.pdat
